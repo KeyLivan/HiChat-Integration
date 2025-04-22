@@ -12,7 +12,7 @@ data = {'asterisk': call_id, 'numero': caller_number}
 
 recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
 recorded_audio_ogg = f"/tmp/call_{call_id}_in.ogg"
-received_audio = f"/tmp/call_{call_id}_IA.ogg"
+received_audio = f"/tmp/call_{call_id}_IA.opus"
 converted_audio = f"/tmp/call_{call_id}_out.gsm"
 transfer_header_file = f"/tmp/transfer_header_{call_id}.txt"
 JSON_FILE_PATH = f"/tmp/variables_{call_id}.json"
@@ -110,10 +110,11 @@ if os.path.exists(recorded_audio_wav):
 
         agi_verbose("Áudio convertido para OGG com sucesso.")
         start_time = time.time()
-
+        agi_verbose("iniciando request.")
         with open(recorded_audio_ogg, 'rb') as audio_file:
             files = {'file': audio_file}
             response = requests.post(endpoint_url, files=files, data=data)
+            
 
         elapsed_time = time.time() - start_time
         agi_verbose(f"Tempo da requisição: {elapsed_time:.2f}s")
@@ -145,11 +146,13 @@ if os.path.exists(recorded_audio_wav):
         agi_verbose(f"Resposta formatada: {resposta_formatada}")
 
         if os.path.exists(received_audio) and os.path.getsize(received_audio) > 0:
-            agi_verbose("Convertendo resposta OGG para GSM...")
+            agi_verbose("Convertendo resposta OPUS para GSM...")
+            # Converter o áudio recebido de OPUS para GSM
             conversion_result = subprocess.run(
                 ['ffmpeg', '-i', received_audio, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
             )
+
 
             if conversion_result.returncode == 0:
                 agi_verbose(f"Resposta convertida com sucesso para GSM: {converted_audio}")
