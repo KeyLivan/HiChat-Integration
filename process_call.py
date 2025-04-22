@@ -6,195 +6,164 @@ import subprocess
 import time
 import json
 
-# Captura o ID da chamada passado pelo dialplan (UNIQUEID)
 call_id = sys.argv[1]
 caller_number = sys.argv[2]
 data = {'asterisk': call_id, 'numero': caller_number}
 
-# Definir o caminho do áudio gravado e o áudio de resposta com o ID da chamada
-recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"  # Gravação inicial em WAV
-recorded_audio_ogg = f"/tmp/call_{call_id}_in.ogg"  # Converter para OGG (Opus)
-received_audio = f"/tmp/call_{call_id}_IA.ogg"  # Áudio recebido da IA
-converted_audio = f"/tmp/call_{call_id}_out.gsm"  # Áudio convertido para GSM
-transfer_header_file = f"/tmp/transfer_header_{call_id}.txt"  # Caminho para salvar o header Transfer
-
-# Caminho para o arquivo JSON
+recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
+recorded_audio_ogg = f"/tmp/call_{call_id}_in.ogg"
+received_audio = f"/tmp/call_{call_id}_IA.ogg"
+converted_audio = f"/tmp/call_{call_id}_out.gsm"
+transfer_header_file = f"/tmp/transfer_header_{call_id}.txt"
 JSON_FILE_PATH = f"/tmp/variables_{call_id}.json"
 
 def agi_verbose(message):
-    sys.stdout.write(f"VERBOSE \"{message}\" 1\n")
+    sys.stdout.write(f'VERBOSE "{message}" 1\n')
     sys.stdout.flush()
 
+def exit_with_error(msg):
+    agi_verbose(f"Saída com erro controlado: {msg}")
+    sys.exit(0)
+
 def load_variables():
-    """Carrega as variáveis do arquivo JSON."""
     try:
         if not os.path.exists(JSON_FILE_PATH):
-            agi_verbose("Arquivo JSON não existe, carregando valores padrão.")
+            agi_verbose("Arquivo JSON não encontrado. Usando valores padrão.")
             return {"EMPTY_BODY_COUNT": 0, "CLOSING": False, "HUNGRUP": False}
         with open(JSON_FILE_PATH, "r") as file:
-            agi_verbose(f"Arquivo JSON carregado com sucesso: {JSON_FILE_PATH}")
+            agi_verbose(f"Arquivo JSON carregado: {JSON_FILE_PATH}")
             return json.load(file)
     except Exception as e:
-        agi_verbose(f"Erro ao carregar arquivo JSON: {str(e)}")
+        agi_verbose(f"Erro ao carregar JSON: {str(e)}")
         return {"EMPTY_BODY_COUNT": 0, "CLOSING": False, "HUNGRUP": False}
 
-
 def save_variables(variables):
-    """Salva as variáveis no arquivo JSON."""
     try:
         with open(JSON_FILE_PATH, "w") as file:
             json.dump(variables, file)
-        agi_verbose(f"Variáveis salvas com sucesso no arquivo: {JSON_FILE_PATH}")
+        agi_verbose(f"Variáveis salvas: {JSON_FILE_PATH}")
     except Exception as e:
-        agi_verbose(f"Erro ao salvar variáveis no arquivo JSON: {str(e)}")
-
+        agi_verbose(f"Erro ao salvar JSON: {str(e)}")
 
 def increment_empty_body_count(body=False):
-    """Função principal para gerenciar EMPTY_BODY_COUNT."""
-    agi_verbose("Iniciando incremento de EMPTY_BODY_COUNT")
-
-    # Carrega as variáveis do arquivo JSON
+    agi_verbose("Iniciando verificação do EMPTY_BODY_COUNT...")
     variables = load_variables()
     empty_body_count = variables.get("EMPTY_BODY_COUNT", 0)
-
-    agi_verbose(f"EMPTY_BODY_COUNT inicial: {empty_body_count}")
+    agi_verbose(f"EMPTY_BODY_COUNT atual: {empty_body_count}")
 
     if not body:
-        agi_verbose("Executando incremento do EMPTY_BODY_COUNT")
+        agi_verbose("Incrementando EMPTY_BODY_COUNT...")
         if empty_body_count == 2:
             variables["CLOSING"] = True
         elif empty_body_count > 2:
             variables["CLOSING"] = False
             variables["HUNGRUP"] = True
-        elif empty_body_count < 2:
+        else:
             variables["CLOSING"] = False
-
-        # Incrementa o contador
         empty_body_count += 1
         variables["EMPTY_BODY_COUNT"] = empty_body_count
     else:
-        agi_verbose("Resetando EMPTY_BODY_COUNT")
-        # Reseta os valores
-        empty_body_count = 0
-        variables["EMPTY_BODY_COUNT"] = empty_body_count
+        agi_verbose("Resetando EMPTY_BODY_COUNT...")
+        variables["EMPTY_BODY_COUNT"] = 0
         variables["CLOSING"] = False
         variables["HUNGRUP"] = False
 
-    # Salva as variáveis no arquivo JSON
     save_variables(variables)
-
-    # Imprime as variáveis atualizadas
-    sys.stdout.write(f"EMPTY_BODY_COUNT={variables['EMPTY_BODY_COUNT']}\n")
-    sys.stdout.write(f"CLOSING={variables['CLOSING']}\n")
-    sys.stdout.write(f"HUNGRUP={variables['HUNGRUP']}\n")
+    sys.stdout.write(f'EMPTY_BODY_COUNT={variables["EMPTY_BODY_COUNT"]}\n')
+    sys.stdout.write(f'CLOSING={variables["CLOSING"]}\n')
+    sys.stdout.write(f'HUNGRUP={variables["HUNGRUP"]}\n')
     sys.stdout.flush()
 
-
-# Função para remover arquivos usando subprocess e o comando 'rm'
 def remove_file_if_exists(file_path):
     try:
-        result = subprocess.run(['rm', '-f', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        if result.returncode == 0:
-            agi_verbose(f"Arquivo {file_path} removido com sucesso.")
-        else:
-            agi_verbose(f"Erro ao remover arquivo {file_path}: {result.stderr}")
+        if os.path.exists(file_path):
+            result = subprocess.run(['rm', '-f', file_path],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    universal_newlines=True)
+            if result.returncode == 0:
+                agi_verbose(f"Arquivo removido: {file_path}")
+            else:
+                agi_verbose(f"Erro ao remover {file_path}: {result.stderr}")
     except Exception as e:
-        agi_verbose(f"Erro ao tentar remover {file_path}: {str(e)}")
+        agi_verbose(f"Exceção ao remover {file_path}: {str(e)}")
 
-
-# Remover arquivos anteriores de forma segura
-agi_verbose("Removendo arquivos de áudio anteriores...")
+agi_verbose("Iniciando script AGI e removendo arquivos anteriores...")
 remove_file_if_exists(received_audio)
 remove_file_if_exists(converted_audio)
 remove_file_if_exists(recorded_audio_ogg)
 
-# URL do servidor de STT/IA
 endpoint_url = "http://3.82.106.88:8000/chatvoices/1/voice"
 
-# Verifica se o arquivo de áudio gravado existe e tem mais de 0 bytes
-if os.path.exists(recorded_audio_wav): # and os.path.getsize(recorded_audio_wav) > 0:
-    agi_verbose(f"O arquivo de áudio {recorded_audio_wav} existe e será convertido para OGG Opus.")
-
+if os.path.exists(recorded_audio_wav):
+    agi_verbose(f"Arquivo de entrada encontrado: {recorded_audio_wav}")
     try:
-        # Converte o arquivo de áudio gravado em WAV para OGG (Opus)
+        agi_verbose("Convertendo áudio para OGG...")
         conversion_result = subprocess.run(
             ['ffmpeg', '-i', recorded_audio_wav, '-c:a', 'libopus', '-ar', '16000', recorded_audio_ogg],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
         )
 
-        if conversion_result.returncode == 0:
-            agi_verbose(f"Áudio convertido com sucesso para {recorded_audio_ogg}.")
-        else:
-            agi_verbose(f"Erro na conversão: {conversion_result.stderr}")
-            sys.exit(1)
+        if conversion_result.returncode != 0:
+            agi_verbose(f"Erro na conversão para OGG: {conversion_result.stderr}")
+            exit_with_error("Falha ao converter para OGG")
 
-        # Inicia a medição de tempo
+        agi_verbose("Áudio convertido para OGG com sucesso.")
         start_time = time.time()
 
-        # Abre o arquivo de áudio convertido (OGG Opus)
         with open(recorded_audio_ogg, 'rb') as audio_file:
-            # Envia o áudio e o ID da chamada para o servidor
             files = {'file': audio_file}
             response = requests.post(endpoint_url, files=files, data=data)
 
-        # Finaliza a medição de tempo
-        end_time = time.time()
+        elapsed_time = time.time() - start_time
+        agi_verbose(f"Tempo da requisição: {elapsed_time:.2f}s")
+        agi_verbose(f"Status HTTP: {response.status_code}")
 
-        # Calcula o tempo de execução
-        elapsed_time = end_time - start_time
-        agi_verbose(f"Tempo da requisição: {elapsed_time:.2f} segundos")
-
-        # Verifica se a resposta do servidor foi bem-sucedida
-        if response.status_code == 200:
-            # Verifica se o body da resposta está vazio
-            if not response.content:
-                increment_empty_body_count()
-                raise Exception("Body vazio")  # Interrompe a execução com uma mensagem de erro
-            else:
-                increment_empty_body_count(True)
-
-            # Salva o áudio de resposta no caminho definido
-            with open(received_audio, 'wb') as f:
-                f.write(response.content)
-
-            # Salva o valor do header Transfer, se existir
-            transfer_value = response.headers.get('Transfer')
-            transcricao = response.headers.get('transcricao')
-            resposta_formatada = response.headers.get('resposta_formatada')
-            if transfer_value is not None:
-                with open(transfer_header_file, 'w') as f:
-                    f.write(transfer_value)
-                agi_verbose(f"Valor do header Transfer salvo em {transfer_header_file}: {transfer_value}")
-            else:
-                agi_verbose("Header Transfer não encontrado na resposta.")
-            agi_verbose(f"Resultado do stt: {transcricao}")
-            agi_verbose("***")
-            agi_verbose(f"Resposta da IA em texto antes do tts: {resposta_formatada}")
-
-            # Verifica se o áudio de resposta foi salvo corretamente
-            if os.path.exists(received_audio) and os.path.getsize(received_audio) > 0:
-                agi_verbose(f"Áudio de resposta salvo em {received_audio}.")
-
-                # Converter o áudio recebido de OGG para GSM
-                conversion_result = subprocess.run(
-                    ['ffmpeg', '-i', received_audio, '-ar', '8000', '-ac', '1','-b:a', '13k', '-c:a', 'gsm', converted_audio],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
-                )
-
-                if conversion_result.returncode == 0:
-                    agi_verbose(f"Áudio convertido com sucesso para {converted_audio}.")
-                else:
-                    agi_verbose(f"Erro na conversão para GSM: {conversion_result.stderr}")
-            else:
-                agi_verbose("Erro: O arquivo de resposta foi salvo, mas está vazio.")
-        else:
+        if response.status_code != 200:
             increment_empty_body_count()
-            agi_verbose(f"Erro ao enviar o áudio. Código de retorno: {response}.")
+            exit_with_error(f"Erro HTTP: {response.status_code}")
+
+        if not response.content:
+            increment_empty_body_count()
+            exit_with_error("Resposta sem conteúdo")
+
+        increment_empty_body_count(True)
+
+        with open(received_audio, 'wb') as f:
+            f.write(response.content)
+
+        transcricao = response.headers.get('transcricao')
+        resposta_formatada = response.headers.get('resposta_formatada')
+        transfer_value = response.headers.get('Transfer')
+
+        if transfer_value:
+            with open(transfer_header_file, 'w') as f:
+                f.write(transfer_value)
+            agi_verbose(f"Header Transfer salvo: {transfer_value}")
+
+        agi_verbose(f"Transcrição: {transcricao}")
+        agi_verbose(f"Resposta formatada: {resposta_formatada}")
+
+        if os.path.exists(received_audio) and os.path.getsize(received_audio) > 0:
+            agi_verbose("Convertendo resposta OGG para GSM...")
+            conversion_result = subprocess.run(
+                ['ffmpeg', '-i', received_audio, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+            )
+
+            if conversion_result.returncode == 0:
+                agi_verbose(f"Resposta convertida com sucesso para GSM: {converted_audio}")
+            else:
+                agi_verbose(f"Erro ao converter para GSM: {conversion_result.stderr}")
+        else:
+            agi_verbose("Arquivo de resposta vazio ou ausente.")
     except Exception as e:
-        agi_verbose(f"Erro ao processar o áudio: {str(e)}")
+        agi_verbose(f"Erro inesperado durante processamento: {str(e)}")
+        exit_with_error("Exceção no processamento")
 else:
-    agi_verbose("Arquivo de áudio gravado não existe ou está vazio.")
+    agi_verbose("Arquivo de entrada não encontrado ou está vazio.")
+    exit_with_error("Sem áudio para processar")
 
-
-
-
+# Finaliza o script com sucesso
+agi_verbose("Execução do AGI finalizada com sucesso.")
+sys.exit(0)
