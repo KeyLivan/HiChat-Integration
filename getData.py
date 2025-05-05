@@ -29,8 +29,8 @@ def download_audio(bucket_minio, audio_path_minio):
 
 
 # Configurações
-outbound_id = "7"  # Altere conforme necessário
-endpoint_url = f"http://localhost:8000/public/tronco/{outbound_id}"
+bucket = "user-1-chatvoice-17-bucket"  # Altere conforme necessário
+endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
 try:
     # Requisição ao endpoint
