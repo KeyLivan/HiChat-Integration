@@ -98,20 +98,20 @@ endpoint_url = "http://3.82.106.88:8000/chatvoices/17/voice"
 if os.path.exists(recorded_audio_wav):
     agi_verbose(f"Arquivo de entrada encontrado: {recorded_audio_wav}")
     try:
-        agi_verbose("Convertendo áudio para OGG...")
-        conversion_result = subprocess.run(
-            ['ffmpeg', '-i', recorded_audio_wav, '-c:a', 'libopus', '-ar', '16000', recorded_audio_ogg],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
-        )
+        # agi_verbose("Convertendo áudio para OGG...")
+        # conversion_result = subprocess.run(
+          #  ['ffmpeg', '-i', recorded_audio_wav, '-c:a', 'libopus', '-ar', '16000', recorded_audio_ogg],
+           # stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        #)
 
-        if conversion_result.returncode != 0:
-            agi_verbose(f"Erro na conversão para OGG: {conversion_result.stderr}")
-            exit_with_error("Falha ao converter para OGG")
+        #if conversion_result.returncode != 0:
+         #   agi_verbose(f"Erro na conversão para OGG: {conversion_result.stderr}")
+          #  exit_with_error("Falha ao converter para OGG")
 
-        agi_verbose("Áudio convertido para OGG com sucesso.")
+        #agi_verbose("Áudio convertido para OGG com sucesso.")
         start_time = time.time()
         agi_verbose("iniciando request.")
-        with open(recorded_audio_ogg, 'rb') as audio_file:
+        with open(recorded_audio_wav, 'rb') as audio_file:
             files = {'file': audio_file}
             response = requests.post(endpoint_url, files=files, data=data)
 
