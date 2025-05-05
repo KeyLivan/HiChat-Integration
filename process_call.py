@@ -93,7 +93,7 @@ remove_file_if_exists(received_audio)
 remove_file_if_exists(converted_audio)
 remove_file_if_exists(recorded_audio_ogg)
 
-endpoint_url = "http://3.82.106.88:8000/chatvoices/1/voice"
+endpoint_url = "http://3.82.106.88:8000/chatvoices/17/voice"
 
 if os.path.exists(recorded_audio_wav):
     agi_verbose(f"Arquivo de entrada encontrado: {recorded_audio_wav}")
