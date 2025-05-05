@@ -38,7 +38,7 @@ def download_audio(bucket_minio, audio_path_minio):
 CHANNEL = sys.argv[1]
 
 # Remove o prefixo (como PJSIP/) e o sufixo (-00000017)
-match = re.match(r'^[^/]+/([^-]+(?:-[^-]+)*?)-\d+$', CHANNEL)
+match = re.match(r'^[^/]+/([^-]+(?:-[^-]+)*?)-[\w]+$', CHANNEL)
 
 if match:
     ramal = match.group(1)
