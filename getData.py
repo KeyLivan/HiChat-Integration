@@ -2,6 +2,8 @@
 import requests
 import json
 import os
+import sys
+import re
 
 # Função para baixar e salvar o áudio
 def download_audio(bucket_minio, audio_path_minio):
@@ -29,8 +31,17 @@ def download_audio(bucket_minio, audio_path_minio):
 
 
 # Configurações
+CHANNEL = sys.argv[1]
+
+# Remove o prefixo (como PJSIP/) e o sufixo (-00000017)
+match = re.match(r'^[^/]+/([^-]+(?:-[^-]+)*?)-\d+$', CHANNEL)
+
+if match:
+    ramal = match.group(1)
+else:
+    ramal = CHANNEL  # fallback caso não combine
 bucket = "user-1-chatvoice-17-bucket"  # Altere conforme necessário
-endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
+endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{ramal}"
 
 try:
     # Requisição ao endpoint
