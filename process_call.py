@@ -125,8 +125,41 @@ if os.path.exists(recorded_audio_wav):
             exit_with_error(f"Erro HTTP: {response.status_code}")
 
         if not response.content:
-            increment_empty_body_count()
-            exit_with_error("Resposta sem conteúdo")
+            agi_verbose("Resposta sem conteúdo. Verificando se é JSON com caminho no MinIO...")
+            try:
+                json_response = response.json()
+                bucket = json_response.get("bucket_minio")
+                audio_path = json_response.get("audio_path_minio")
+        
+                if bucket and audio_path:
+                    source_path = f"/tmp/{bucket}/{audio_path}"
+                    agi_verbose(f"Arquivo OPUS encontrado via JSON: {source_path}")
+        
+                    if os.path.exists(source_path):
+                        conversion_result = subprocess.run(
+                            ['ffmpeg', '-i', source_path, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+                        )
+                        if conversion_result.returncode == 0:
+                            agi_verbose(f"Arquivo do MinIO convertido com sucesso para GSM: {converted_audio}")
+                            sys.exit(0)
+                        else:
+                            agi_verbose(f"Erro ao converter áudio do MinIO para GSM: {conversion_result.stderr}")
+                    else:
+                        agi_verbose(f"Arquivo {source_path} não encontrado no sistema.")
+                        increment_empty_body_count()
+                        exit_with_error("Arquivo de áudio do MinIO não localizado")
+        
+                    increment_empty_body_count(True)
+                else:
+                    agi_verbose("Resposta JSON não contém os campos esperados.")
+                    increment_empty_body_count()
+                    exit_with_error("Resposta JSON inválida")
+            except Exception as e:
+                agi_verbose(f"Erro ao processar resposta JSON: {str(e)}")
+                increment_empty_body_count()
+                exit_with_error("Erro no parse da resposta JSON")
+
 
         increment_empty_body_count(True)
 
