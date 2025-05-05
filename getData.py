@@ -9,28 +9,29 @@ import re
 def agi_verbose(message):
     sys.stdout.write(f'VERBOSE "{message}" 1\n')
     sys.stdout.flush()
-# Função para baixar e salvar o áudio
-def download_audio(bucket_minio, audio_path_minio):
-    minio_url = f"http://localhost:9000/{bucket_minio}/{audio_path_minio}"  # URL do MinIO em localhost
-    audio_dir = os.path.join("/tmp", bucket_minio)
 
+# Função para baixar e salvar o áudio usando o cliente MinIO
+def download_audio(bucket_minio, audio_path_minio):
+    # Conectar ao MinIO
+    client = Minio(
+        "localhost:9000",  # Endereço do MinIO
+        access_key="seu_access_key",  # Sua chave de acesso
+        secret_key="seu_secret_key",  # Sua chave secreta
+        secure=False  # Se estiver usando HTTP, defina como False
+    )
+    
     # Cria o diretório para o bucket, caso não exista
+    audio_dir = os.path.join("/tmp", bucket_minio)
     if not os.path.exists(audio_dir):
         os.makedirs(audio_dir)
 
     audio_path = os.path.join(audio_dir, audio_path_minio)
 
     try:
-        # Baixa o áudio do MinIO
-        response = requests.get(minio_url, stream=True)
-        response.raise_for_status()
-
-        # Salva o áudio no diretório
-        with open(audio_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+        # Baixar o áudio do MinIO
+        client.fget_object(bucket_minio, audio_path_minio, audio_path)
         agi_verbose(f"Áudio salvo em: {audio_path}")
-    except requests.exceptions.RequestException as e:
+    except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
 
 
