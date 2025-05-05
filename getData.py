@@ -4,6 +4,9 @@ import json
 import os
 import sys
 import re
+from minio import Minio
+from minio.error import ResponseError
+from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT  # Importando as credenciais
 
 
 def agi_verbose(message):
@@ -14,9 +17,9 @@ def agi_verbose(message):
 def download_audio(bucket_minio, audio_path_minio):
     # Conectar ao MinIO
     client = Minio(
-        "localhost:9000",  # Endereço do MinIO
-        access_key="seu_access_key",  # Sua chave de acesso
-        secret_key="seu_secret_key",  # Sua chave secreta
+        MINIO_ENDPOINT,  # Usando o endereço configurado em configMinio.py
+        access_key=MINIO_ACCESS_KEY,  # Usando a chave de acesso configurada
+        secret_key=MINIO_SECRET_KEY,  # Usando a chave secreta configurada
         secure=False  # Se estiver usando HTTP, defina como False
     )
     
@@ -33,7 +36,6 @@ def download_audio(bucket_minio, audio_path_minio):
         agi_verbose(f"Áudio salvo em: {audio_path}")
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
-
 
 # Configurações
 CHANNEL = sys.argv[1]
