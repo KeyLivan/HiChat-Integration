@@ -5,6 +5,10 @@ import os
 import sys
 import re
 
+
+def agi_verbose(message):
+    sys.stdout.write(f'VERBOSE "{message}" 1\n')
+    sys.stdout.flush()
 # Função para baixar e salvar o áudio
 def download_audio(bucket_minio, audio_path_minio):
     minio_url = f"http://localhost:9000/{bucket_minio}/{audio_path_minio}"  # URL do MinIO em localhost
@@ -25,9 +29,9 @@ def download_audio(bucket_minio, audio_path_minio):
         with open(audio_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
-        print(f"Áudio salvo em: {audio_path}")
+        agi_verbose(f"Áudio salvo em: {audio_path}")
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao baixar áudio {audio_path_minio}: {e}")
+        agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
 
 
 # Configurações
@@ -53,13 +57,13 @@ try:
     chatvoice_id = data.get("chatvoice_id")
 
     if not chatvoice_id:
-        print("Resposta não contém 'chatvoice_id'. Abortando.")
+        agi_verbose("Resposta não contém 'chatvoice_id'. Abortando.")
     else:
         # Salvar o JSON no caminho /tmp
         filename = os.path.join("/tmp", f"data_chatvoice_{chatvoice_id}.json")
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"Arquivo JSON salvo com sucesso: {filename}")
+        agi_verbose(f"Arquivo JSON salvo com sucesso: {filename}")
 
         # Salvar os áudios conforme os dados do JSON
         for qa in data.get("qas", []):
@@ -69,4 +73,4 @@ try:
                 download_audio(bucket_minio, audio_path_minio)
 
 except requests.exceptions.RequestException as e:
-    print(f"Erro ao fazer requisição: {e}")
+    agi_verbose(f"Erro ao fazer requisição: {e}")
