@@ -47,8 +47,8 @@ if match:
     ramal = match.group(1)
 else:
     ramal = CHANNEL  # fallback caso não combine
-bucket = "user-1-chatvoice-17-bucket"  # Altere conforme necessário
-endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{ramal}"
+bucket = f"{ramal}_bucket"  # Altere conforme necessário
+endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
 try:
     # Requisição ao endpoint
