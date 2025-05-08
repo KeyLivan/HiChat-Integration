@@ -13,6 +13,10 @@ def agi_verbose(message):
     sys.stdout.write(f'VERBOSE "{message}" 1\n')
     sys.stdout.flush()
 
+def agi_set_variable(name, value):
+    sys.stdout.write(f'SET VARIABLE {name} "{value}"\n')
+    sys.stdout.flush()
+
 # Função para baixar e salvar o áudio usando o cliente MinIO
 def download_audio(client, bucket_minio, audio_path_minio):
     # Cria o diretório para o bucket, caso não exista
@@ -71,6 +75,10 @@ try:
     # Carrega o conteúdo JSON
     data = response.json()
     chatvoice_id = data.get("chatvoice_id")
+    bucket = data["qas"][0]["bucket_minio"]
+
+    agi_set_variable("BUCKET_MINIO", bucket)
+    agi_set_variable("CHATVOICE_ID", chatvoice_id)
 
     if not chatvoice_id:
         agi_verbose("Resposta não contém 'chatvoice_id'. Abortando.")
