@@ -9,7 +9,7 @@ import json
 call_id = sys.argv[1]
 caller_number = sys.argv[2]
 chatvoice_id = sys.argv[3]
-bucket = sys.argv[4]
+bucket = sys.argv[4].strip()
 data = {'asterisk': call_id, 'numero': caller_number}
 
 recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
