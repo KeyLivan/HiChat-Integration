@@ -9,6 +9,7 @@ import json
 call_id = sys.argv[1]
 caller_number = sys.argv[2]
 chatvoice_id = sys.argv[3]
+bucket = sys.argv[4]
 data = {'asterisk': call_id, 'numero': caller_number}
 
 recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
@@ -129,7 +130,6 @@ if os.path.exists(recorded_audio_wav):
             agi_verbose(f"Resposta JSON recebida: {json_response}")
 
             # Se encontrar o caminho do áudio no MinIO, processa-o
-            bucket = json_response.get("bucket_minio")
             audio_path = json_response.get("audio_path_minio")
             
             if bucket and audio_path:
