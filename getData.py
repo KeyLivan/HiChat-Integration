@@ -64,7 +64,7 @@ else:
 # Ajusta o nome do ramal para substituir "_" por "-"
 ramal = adjust_channel_name(ramal)
 
-bucket = f"{ramal}_bucket"  # Altere conforme necessário
+bucket = f"{ramal}-bucket"  # Altere conforme necessário
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
 try:
