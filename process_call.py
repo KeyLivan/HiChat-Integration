@@ -133,7 +133,7 @@ if os.path.exists(recorded_audio_wav):
             audio_path = json_response.get("audio_path_minio")
             
             if bucket and audio_path:
-                audio_gsm_path = audio_path.replace(".opus", ".gsm")
+                audio_gsm_path = audio_path.replace(".opus", ".gsm").strip()
                 source_path = f"/tmp/{bucket}/{audio_gsm_path}"
                 agi_verbose(f"Arquivo GSM esperado via JSON: {source_path}")
             
