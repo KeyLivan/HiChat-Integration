@@ -20,12 +20,24 @@ def download_audio(client, bucket_minio, audio_path_minio):
     if not os.path.exists(audio_dir):
         os.makedirs(audio_dir)
 
-    audio_path = os.path.join(audio_dir, audio_path_minio)
+    original_audio_path = os.path.join(audio_dir, audio_path_minio)
+    converted_audio_path = os.path.splitext(original_audio_path)[0] + ".gsm"
 
     try:
         # Baixar o áudio do MinIO
-        client.fget_object(bucket_minio, audio_path_minio, audio_path)
-        agi_verbose(f"Áudio salvo em: {audio_path}")
+        client.fget_object(bucket_minio, audio_path_minio, original_audio_path)
+        agi_verbose(f"Áudio baixado: {original_audio_path}")
+
+        # Converter para .gsm usando ffmpeg
+        ffmpeg_cmd = f'ffmpeg -y -i "{original_audio_path}" -ar 8000 -ac 1 -ab 13k "{converted_audio_path}"'
+        result = os.system(ffmpeg_cmd)
+
+        if result == 0:
+            agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
+            os.remove(original_audio_path)  # Opcional: remover o arquivo original .opus
+        else:
+            agi_verbose(f"Erro ao converter para GSM: {converted_audio_path}")
+
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
 
