@@ -8,6 +8,7 @@ import json
 
 call_id = sys.argv[1]
 caller_number = sys.argv[2]
+chatvoice_id = sys.argv[3]
 data = {'asterisk': call_id, 'numero': caller_number}
 
 recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
@@ -93,7 +94,7 @@ remove_file_if_exists(received_audio)
 remove_file_if_exists(converted_audio)
 remove_file_if_exists(recorded_audio_ogg)
 
-endpoint_url = "http://3.82.106.88:8000/chatvoices/17/voice"
+endpoint_url = f"http://3.82.106.88:8000/chatvoices/{chatvoice_id}/voice_qa"
 
 if os.path.exists(recorded_audio_wav):
     agi_verbose(f"Arquivo de entrada encontrado: {recorded_audio_wav}")
