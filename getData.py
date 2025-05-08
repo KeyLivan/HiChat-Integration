@@ -14,15 +14,7 @@ def agi_verbose(message):
     sys.stdout.flush()
 
 # Função para baixar e salvar o áudio usando o cliente MinIO
-def download_audio(bucket_minio, audio_path_minio):
-    # Conectar ao MinIO
-    client = Minio(
-        MINIO_ENDPOINT,  # Usando o endereço configurado em configMinio.py
-        access_key=MINIO_ACCESS_KEY,  # Usando a chave de acesso configurada
-        secret_key=MINIO_SECRET_KEY,  # Usando a chave secreta configurada
-        secure=False  # Se estiver usando HTTP, defina como False
-    )
-    
+def download_audio(client, bucket_minio, audio_path_minio):
     # Cria o diretório para o bucket, caso não exista
     audio_dir = os.path.join("/tmp", bucket_minio)
     if not os.path.exists(audio_dir):
@@ -37,6 +29,11 @@ def download_audio(bucket_minio, audio_path_minio):
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
 
+# Função para ajustar o nome do ramal
+def adjust_channel_name(channel_name):
+    # Substitui "_" por "-"
+    return channel_name.replace("_", "-")
+
 # Configurações
 CHANNEL = sys.argv[1]
 
@@ -47,6 +44,10 @@ if match:
     ramal = match.group(1)
 else:
     ramal = CHANNEL  # fallback caso não combine
+
+# Ajusta o nome do ramal para substituir "_" por "-"
+ramal = adjust_channel_name(ramal)
+
 bucket = f"{ramal}_bucket"  # Altere conforme necessário
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
@@ -62,18 +63,36 @@ try:
     if not chatvoice_id:
         agi_verbose("Resposta não contém 'chatvoice_id'. Abortando.")
     else:
-        # Salvar o JSON no caminho /tmp
-        filename = os.path.join("/tmp", f"data_chatvoice_{chatvoice_id}.json")
+        # Conectar ao MinIO
+        client = Minio(
+            MINIO_ENDPOINT,  # Usando o endereço configurado em configMinio.py
+            access_key=MINIO_ACCESS_KEY,  # Usando a chave de acesso configurada
+            secret_key=MINIO_SECRET_KEY,  # Usando a chave secreta configurada
+            secure=False  # Se estiver usando HTTP, defina como False
+        )
+
+        # Salvar o JSON no diretório correto
+        audio_dir = os.path.join("/tmp", bucket)  # Diretório onde os áudios serão salvos
+        if not os.path.exists(audio_dir):
+            os.makedirs(audio_dir)
+
+        filename = os.path.join(audio_dir, f"data_chatvoice_{chatvoice_id}.json")
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         agi_verbose(f"Arquivo JSON salvo com sucesso: {filename}")
 
-        # Salvar os áudios conforme os dados do JSON
+        # Salvar os áudios de gravações
+        gravacoes = data.get("gravacoes", {})
+        for key, audio_path_minio in gravacoes.items():
+            if audio_path_minio:
+                download_audio(client, bucket, audio_path_minio)
+
+        # Salvar os áudios das QAs
         for qa in data.get("qas", []):
             bucket_minio = qa.get("bucket_minio")
             audio_path_minio = qa.get("audio_path_minio")
             if bucket_minio and audio_path_minio:
-                download_audio(bucket_minio, audio_path_minio)
+                download_audio(client, bucket_minio, audio_path_minio)
 
 except requests.exceptions.RequestException as e:
     agi_verbose(f"Erro ao fazer requisição: {e}")
