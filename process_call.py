@@ -131,31 +131,27 @@ if os.path.exists(recorded_audio_wav):
             # Se encontrar o caminho do áudio no MinIO, processa-o
             bucket = json_response.get("bucket_minio")
             audio_path = json_response.get("audio_path_minio")
-
+            
             if bucket and audio_path:
-                source_path = f"/tmp/{bucket}/{audio_path}"
-                agi_verbose(f"Arquivo OPUS encontrado via JSON: {source_path}")
-
+                audio_gsm_path = audio_path.replace(".opus", ".gsm")
+                source_path = f"/tmp/{bucket}/{audio_gsm_path}"
+                agi_verbose(f"Arquivo GSM esperado via JSON: {source_path}")
+            
                 if os.path.exists(source_path):
-                    conversion_result = subprocess.run(
-                        ['ffmpeg', '-i', source_path, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
-                    )
-                    if conversion_result.returncode == 0:
-                        agi_verbose(f"Arquivo do MinIO convertido com sucesso para GSM: {converted_audio}")
-                        sys.exit(0)
-                    else:
-                        agi_verbose(f"Erro ao converter áudio do MinIO para GSM: {conversion_result.stderr}")
+                    subprocess.run(['cp', source_path, converted_audio])
+                    agi_verbose(f"Arquivo GSM copiado com sucesso para: {converted_audio}")
+                    sys.exit(0)
                 else:
                     agi_verbose(f"Arquivo {source_path} não encontrado no sistema.")
                     increment_empty_body_count()
                     exit_with_error("Arquivo de áudio do MinIO não localizado")
-
+            
                 increment_empty_body_count(True)
             else:
                 agi_verbose("Resposta JSON não contém os campos esperados.")
                 increment_empty_body_count()
                 exit_with_error("Resposta JSON inválida")
+
         except json.JSONDecodeError:
             agi_verbose("Resposta não é JSON, prosseguindo com processamento do áudio...")
             if response.content:  # Se houver conteúdo de áudio, continua processando normalmente
