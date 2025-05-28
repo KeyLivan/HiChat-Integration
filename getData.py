@@ -62,7 +62,7 @@ else:
     ramal = CHANNEL  # fallback caso não combine
 
 # Ajusta o nome do ramal para substituir "_" por "-"
-ramal = adjust_channel_name(ramal)
+ramal = ramal
 
 bucket = f"{ramal}bucket"  # Altere conforme necessário
 gi_verbose(bucket)
@@ -76,7 +76,6 @@ try:
     # Carrega o conteúdo JSON
     data = response.json()
     chatvoice_id = data.get("chatvoice_id")
-    bucket = data["qas"][0]["bucket_minio"]
 
     agi_set_variable("BUCKET_MINIO", bucket)
     agi_set_variable("CHATVOICE_ID", chatvoice_id)
