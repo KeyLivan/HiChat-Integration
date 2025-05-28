@@ -5,6 +5,9 @@ import requests
 import subprocess
 import time
 import json
+from minio import Minio
+from minio.error import S3Error
+from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
 
 call_id = sys.argv[1]
 caller_number = sys.argv[2]
@@ -100,17 +103,6 @@ endpoint_url = f"http://3.82.106.88:8000/chatvoices/{chatvoice_id}/base_new"
 if os.path.exists(recorded_audio_wav):
     agi_verbose(f"Arquivo de entrada encontrado: {recorded_audio_wav}")
     try:
-        # agi_verbose("Convertendo áudio para OGG...")
-        # conversion_result = subprocess.run(
-          #  ['ffmpeg', '-i', recorded_audio_wav, '-c:a', 'libopus', '-ar', '16000', recorded_audio_ogg],
-           # stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
-        #)
-
-        #if conversion_result.returncode != 0:
-         #   agi_verbose(f"Erro na conversão para OGG: {conversion_result.stderr}")
-          #  exit_with_error("Falha ao converter para OGG")
-
-        #agi_verbose("Áudio convertido para OGG com sucesso.")
         start_time = time.time()
         agi_verbose("iniciando request.")
         with open(recorded_audio_wav, 'rb') as audio_file:
@@ -126,35 +118,61 @@ if os.path.exists(recorded_audio_wav):
             exit_with_error(f"Erro HTTP: {response.status_code}")
 
         try:
-            json_response = response.json()  # Tenta parsear como JSON
+            json_response = response.json()
             agi_verbose(f"Resposta JSON recebida: {json_response}")
 
-            # Se encontrar o caminho do áudio no MinIO, processa-o
             audio_path = json_response.get("audio_path_minio")
-            
-            if bucket and audio_path:
-                audio_gsm_path = audio_path.replace(".opus", ".gsm").strip()
-                source_path = f"/tmp/{bucket}/{audio_gsm_path}"
-                agi_verbose(f"Arquivo GSM esperado via JSON: {source_path}")
-            
-                if os.path.exists(source_path):
-                    subprocess.run(['cp', source_path, converted_audio])
-                    agi_verbose(f"Arquivo GSM copiado com sucesso para: {converted_audio}")
+            if audio_path and audio_path.startswith("minio://"):
+                agi_verbose("Extraindo caminho do MinIO...")
+
+                # Extrair caminho do MinIO
+                minio_path = audio_path.replace("minio://", "")
+                parts = minio_path.split("/", 1)
+                if len(parts) != 2:
+                    agi_verbose("Formato inválido de audio_path_minio.")
+                    exit_with_error("Formato inválido de audio_path_minio")
+
+                bucket_name, object_path = parts
+                local_opus_path = f"/tmp/{call_id}_downloaded.opus"
+
+                agi_verbose(f"Bucket: {bucket_name}")
+                agi_verbose(f"Objeto: {object_path}")
+
+                try:
+                    client = Minio(
+                        MINIO_ENDPOINT,
+                        access_key=MINIO_ACCESS_KEY,
+                        secret_key=MINIO_SECRET_KEY,
+                        secure=False
+                    )
+                    client.fget_object(bucket_name, object_path, local_opus_path)
+                    agi_verbose(f"Áudio baixado com sucesso: {local_opus_path}")
+                except S3Error as e:
+                    agi_verbose(f"Erro ao baixar do MinIO: {str(e)}")
+                    exit_with_error("Falha ao baixar o áudio do MinIO")
+
+                # Converter OPUS para GSM
+                conversion_result = subprocess.run(
+                    ['ffmpeg', '-i', local_opus_path, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+                )
+
+                if conversion_result.returncode == 0:
+                    agi_verbose(f"Áudio convertido com sucesso: {converted_audio}")
+                    increment_empty_body_count(True)
                     sys.exit(0)
                 else:
-                    agi_verbose(f"Arquivo {source_path} não encontrado no sistema.")
-                    increment_empty_body_count()
-                    exit_with_error("Arquivo de áudio do MinIO não localizado")
-            
-                increment_empty_body_count(True)
+                    agi_verbose(f"Erro ao converter o áudio: {conversion_result.stderr}")
+                    exit_with_error("Falha ao converter o áudio para GSM")
+
             else:
-                agi_verbose("Resposta JSON não contém os campos esperados.")
+                agi_verbose("Resposta JSON não contém o campo audio_path_minio.")
                 increment_empty_body_count()
                 exit_with_error("Resposta JSON inválida")
 
         except json.JSONDecodeError:
-            agi_verbose("Resposta não é JSON, prosseguindo com processamento do áudio...")
-            if response.content:  # Se houver conteúdo de áudio, continua processando normalmente
+            agi_verbose("Resposta não é JSON, tentando usar como binário de áudio...")
+            if response.content:
                 with open(received_audio, 'wb') as f:
                     f.write(response.content)
 
@@ -172,13 +190,10 @@ if os.path.exists(recorded_audio_wav):
 
                 if os.path.exists(received_audio) and os.path.getsize(received_audio) > 0:
                     agi_verbose("Convertendo resposta OPUS para GSM...")
-                    # Converter o áudio recebido de OPUS para GSM
                     conversion_result = subprocess.run(
                         ['ffmpeg', '-i', received_audio, '-ar', '8000', '-ac', '1', '-b:a', '13k', '-c:a', 'gsm', converted_audio],
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
                     )
-
-
                     if conversion_result.returncode == 0:
                         agi_verbose(f"Resposta convertida com sucesso para GSM: {converted_audio}")
                     else:
@@ -192,6 +207,5 @@ else:
     agi_verbose("Arquivo de entrada não encontrado ou está vazio.")
     exit_with_error("Sem áudio para processar")
 
-# Finaliza o script com sucesso
 agi_verbose("Execução do AGI finalizada com sucesso.")
 sys.exit(0)
