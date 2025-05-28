@@ -107,12 +107,6 @@ try:
             if audio_path_minio:
                 download_audio(client, bucket, audio_path_minio)
 
-        # Salvar os áudios das QAs
-        for qa in data.get("qas", []):
-            bucket_minio = qa.get("bucket_minio")
-            audio_path_minio = qa.get("audio_path_minio")
-            if bucket_minio and audio_path_minio:
-                download_audio(client, bucket_minio, audio_path_minio)
 
 except requests.exceptions.RequestException as e:
     agi_verbose(f"Erro ao fazer requisição: {e}")
