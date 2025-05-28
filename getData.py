@@ -65,6 +65,7 @@ else:
 ramal = adjust_channel_name(ramal)
 
 bucket = f"{ramal}bucket"  # Altere conforme necessário
+gi_verbose(bucket)
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
 try:
