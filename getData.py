@@ -65,7 +65,7 @@ else:
 ramal = ramal
 
 bucket = f"{ramal}bucket"  # Altere conforme necessário
-gi_verbose(bucket)
+agi_verbose(bucket)
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoiceqa/{bucket}"
 
 try:
