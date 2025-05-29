@@ -6,7 +6,7 @@ import subprocess
 import time
 import json
 from minio import Minio
-from minio.error import S3Error
+from minio.error import ResponseError
 from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
 
 call_id = sys.argv[1]
