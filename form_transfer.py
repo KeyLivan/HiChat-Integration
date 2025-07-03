@@ -9,6 +9,8 @@ call_id = sys.argv[1]
 caller_number = sys.argv[2]
 chatvoice_id = sys.argv[3]
 bucket = sys.argv[4].strip()
+form_type = sys.argv[5]
+finish = sys.argv[6]
 
 # Configurações fixas
 url = f"http://localhost:8000/formulario/{chatvoice_id}"  # Ajuste conforme o seu endpoint real
