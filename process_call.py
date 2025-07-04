@@ -26,6 +26,10 @@ def agi_verbose(message):
     sys.stdout.write(f'VERBOSE "{message}" 1\n')
     sys.stdout.flush()
 
+def agi_set_variable(name, value):
+    sys.stdout.write(f'SET VARIABLE {name} "{value}"\n')
+    sys.stdout.flush()
+
 def exit_with_error(msg):
     agi_verbose(f"Saída com erro controlado: {msg}")
     sys.exit(0)
