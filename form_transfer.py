@@ -15,8 +15,7 @@ finish = sys.argv[6]
 
 # Configurações fixas
 url = f"http://localhost:8000/formulario/{chatvoice_id}"  # Ajuste conforme o seu endpoint real
-audio_path = f"/caminho/do/audio/{bucket}/resposta.wav"   # Exemplo de onde está o arquivo
-form_type = "nome"  # ou "cpf", "email", etc
+audio_path = f"/tmp/response_${call_id}_{form_type}.wav"   # Exemplo de onde está o arquivo
 finish = "false"    # ou "true"
 
 # Dados do formulário
