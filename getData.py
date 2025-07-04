@@ -120,5 +120,15 @@ try:
         if ultimo_audio:
             agi_set_variable("ULTIMO_AUDIO", ultimo_audio)
 
+        # Adiciona variáveis para cada áudio e tipo do formulário (para o dialplan)
+        for idx, form_item in enumerate(form_list):
+            audio_name = form_item.get("audio_path")
+            form_type = form_item.get("type")
+            if audio_name and form_type:
+                agi_set_variable(f"FORM_AUDIO_{idx}", audio_name)
+                agi_set_variable(f"FORM_TYPE_{idx}", form_type)
+
+        agi_set_variable("FORM_COUNT", str(len(form_list)))
+
 except requests.exceptions.RequestException as e:
     agi_verbose(f"Erro ao fazer requisição: {e}")
