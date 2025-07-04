@@ -127,7 +127,7 @@ try:
         
             if audio_path_minio and form_type:
                 # Define o nome convertido para .gsm
-                converted_audio_path = os.path.splitext(audio_path_minio)[0] + ".gsm"
+                converted_audio_path = os.path.splitext(audio_path_minio)[0]
                 
                 agi_set_variable(f"FORM_AUDIO_{idx}", converted_audio_path)
                 agi_set_variable(f"FORM_TYPE_{idx}", form_type)
