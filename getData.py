@@ -62,10 +62,10 @@ else:
     ramal = CHANNEL  # fallback caso não combine
 
 # Ajusta o nome do ramal para substituir "_" por "-"
-ramal = ramal
+ramal = adjust_channel_name(ramal)
 
 bucket = f"{ramal}bucket"  # Altere conforme necessário
-agi_verbose(bucket)
+agi_verbose(f"Bucket usado: {bucket}")
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoice/{bucket}"
 
 try:
@@ -107,6 +107,18 @@ try:
             if audio_path_minio:
                 download_audio(client, bucket, audio_path_minio)
 
+        # Salvar os áudios do formulário e setar variável AGI com o último áudio
+        form_list = data.get("form", [])
+        ultimo_audio = None
+
+        for form_item in form_list:
+            audio_path_minio = form_item.get("audio_path")
+            if audio_path_minio:
+                download_audio(client, bucket, audio_path_minio)
+                ultimo_audio = audio_path_minio  # Atualiza para o último arquivo encontrado
+
+        if ultimo_audio:
+            agi_set_variable("ULTIMO_AUDIO", ultimo_audio)
 
 except requests.exceptions.RequestException as e:
     agi_verbose(f"Erro ao fazer requisição: {e}")
