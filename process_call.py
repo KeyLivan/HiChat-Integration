@@ -121,6 +121,12 @@ if os.path.exists(recorded_audio_wav):
             json_response = response.json()
             agi_verbose(f"Resposta JSON recebida: {json_response}")
 
+            # Verifica se existe o campo transferencia_confirmada
+            transferencia = json_response.get("transferencia_confirmada")
+            if transferencia is not None:
+                agi_set_variable("TRANSFER_CONFIRMADA", str(transferencia).lower())
+                agi_verbose(f"Variável TRANSFER_CONFIRMADA setada: {transferencia}")
+
             audio_path = json_response.get("audio_path_minio")
             if audio_path and audio_path.startswith("minio://"):
                 agi_verbose("Extraindo caminho do MinIO...")
