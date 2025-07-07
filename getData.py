@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import re
+import subprocess
 from minio import Minio
 from minio.error import ResponseError
 from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT  # Importando as credenciais
@@ -19,7 +20,6 @@ def agi_set_variable(name, value):
 
 # Função para baixar e salvar o áudio usando o cliente MinIO
 def download_audio(client, bucket_minio, audio_path_minio):
-    # Cria o diretório para o bucket, caso não exista
     audio_dir = os.path.join("/tmp", bucket_minio)
     if not os.path.exists(audio_dir):
         os.makedirs(audio_dir)
@@ -28,22 +28,40 @@ def download_audio(client, bucket_minio, audio_path_minio):
     converted_audio_path = os.path.splitext(original_audio_path)[0] + ".gsm"
 
     try:
-        # Baixar o áudio do MinIO
+        # Sempre remove antes para garantir que vai baixar versão nova
+        if os.path.exists(original_audio_path):
+            os.remove(original_audio_path)
+        if os.path.exists(converted_audio_path):
+            os.remove(converted_audio_path)
+
+        # Baixa do MinIO
         client.fget_object(bucket_minio, audio_path_minio, original_audio_path)
         agi_verbose(f"Áudio baixado: {original_audio_path}")
 
-        # Converter para .gsm usando ffmpeg
-        ffmpeg_cmd = f'ffmpeg -y -i "{original_audio_path}" -ar 8000 -ac 1 -ab 13k "{converted_audio_path}"'
-        result = os.system(ffmpeg_cmd)
+        # Verifica tamanho do arquivo .opus
+        size = os.path.getsize(original_audio_path)
+        if size == 0:
+            agi_verbose(f"Arquivo .opus está vazio: {original_audio_path}")
+            return
 
-        if result == 0:
+        # Executa ffmpeg com subprocess para capturar erros
+        ffmpeg_cmd = [
+            "ffmpeg", "-y", "-i", original_audio_path,
+            "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
+        ]
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+
+        if result.returncode == 0:
             agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-            # os.remove(original_audio_path)  # Opcional: remover o arquivo original .opus
+            os.remove(original_audio_path)
         else:
-            agi_verbose(f"Erro ao converter para GSM: {converted_audio_path}")
+            agi_verbose(f"Erro ao converter {original_audio_path}:\n{result.stderr}")
 
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
+    except Exception as e:
+        agi_verbose(f"Erro inesperado ao processar áudio {audio_path_minio}: {e}")
+
 
 # Função para ajustar o nome do ramal
 def adjust_channel_name(channel_name):
