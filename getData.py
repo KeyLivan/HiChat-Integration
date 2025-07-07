@@ -41,21 +41,39 @@ def download_audio(client, bucket_minio, audio_path_minio):
             agi_verbose(f"Arquivo .opus está vazio: {original_audio_path}")
             return
 
-        ffmpeg_cmd = [
-            "ffmpeg", "-y", "-i", original_audio_path,
-            "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
-        ]
-        result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        success = False
+        attempts = 3
 
-        agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-        os.remove(original_audio_path)
+        for attempt in range(1, attempts + 1):
+            ffmpeg_cmd = [
+                "ffmpeg", "-y", "-i", original_audio_path,
+                "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
+            ]
+            result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    except subprocess.CalledProcessError as e:
-        agi_verbose(f"Erro ao converter {original_audio_path}:\n{e.stderr.decode('utf-8', errors='ignore')}")
+            gsm_size = os.path.getsize(converted_audio_path) if os.path.exists(converted_audio_path) else 0
+
+            if result.returncode == 0 and gsm_size > 0:
+                agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
+                success = True
+                break
+            else:
+                agi_verbose(f"[Tentativa {attempt}] Erro ao converter {original_audio_path}:\n{result.stderr.decode('utf-8', errors='ignore')}")
+                if os.path.exists(converted_audio_path):
+                    os.remove(converted_audio_path)
+                time.sleep(0.5)
+
+        if not success:
+            agi_verbose(f"Falha definitiva ao converter {original_audio_path}. Todas as tentativas falharam.")
+
+        if os.path.exists(original_audio_path):
+            os.remove(original_audio_path)
+
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
     except Exception as e:
         agi_verbose(f"Erro inesperado ao processar áudio {audio_path_minio}: {e}")
+
 
 def adjust_channel_name(channel_name):
     return channel_name.replace("_", "-")
