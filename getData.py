@@ -151,3 +151,5 @@ try:
 
 except requests.exceptions.RequestException as e:
     agi_verbose(f"Erro ao fazer requisição: {e}")
+
+agi_verbose("Script executado com sucesso")
