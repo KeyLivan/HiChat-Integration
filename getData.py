@@ -38,7 +38,7 @@ def download_audio(client, bucket_minio, audio_path_minio):
 
         if result == 0:
             agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-            os.remove(original_audio_path)  # Opcional: remover o arquivo original .opus
+            # os.remove(original_audio_path)  # Opcional: remover o arquivo original .opus
         else:
             agi_verbose(f"Erro ao converter para GSM: {converted_audio_path}")
 
