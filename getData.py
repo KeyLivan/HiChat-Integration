@@ -5,9 +5,10 @@ import os
 import sys
 import re
 import subprocess
+import time
 from minio import Minio
 from minio.error import ResponseError
-from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT  # Importando as credenciais
+from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
 
 
 def agi_verbose(message):
@@ -18,7 +19,6 @@ def agi_set_variable(name, value):
     sys.stdout.write(f'SET VARIABLE {name} "{value}"\n')
     sys.stdout.flush()
 
-# Função para baixar e salvar o áudio usando o cliente MinIO
 def download_audio(client, bucket_minio, audio_path_minio):
     audio_dir = os.path.join("/tmp", bucket_minio)
     if not os.path.exists(audio_dir):
@@ -45,49 +45,35 @@ def download_audio(client, bucket_minio, audio_path_minio):
             "ffmpeg", "-y", "-i", original_audio_path,
             "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
         ]
-        result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
 
-        if result.returncode == 0:
-            agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-            os.remove(original_audio_path)
-        else:
-            agi_verbose(f"Erro ao converter {original_audio_path}:\n{result.stderr.decode('utf-8')}")
+        agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
+        os.remove(original_audio_path)
 
+    except subprocess.CalledProcessError as e:
+        agi_verbose(f"Erro ao converter {original_audio_path}:\n{e.stderr.decode('utf-8', errors='ignore')}")
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
     except Exception as e:
         agi_verbose(f"Erro inesperado ao processar áudio {audio_path_minio}: {e}")
 
-
-# Função para ajustar o nome do ramal
 def adjust_channel_name(channel_name):
-    # Substitui "_" por "-"
     return channel_name.replace("_", "-")
 
-# Configurações
+# --- INÍCIO DO SCRIPT ---
 CHANNEL = sys.argv[1]
 
-# Remove o prefixo (como PJSIP/) e o sufixo (-00000017)
 match = re.match(r'^[^/]+/([^-]+(?:-[^-]+)*?)-[\w]+$', CHANNEL)
-
-if match:
-    ramal = match.group(1)
-else:
-    ramal = CHANNEL  # fallback caso não combine
-
-# Ajusta o nome do ramal para substituir "_" por "-"
+ramal = match.group(1) if match else CHANNEL
 ramal = adjust_channel_name(ramal)
+bucket = f"{ramal}bucket"
 
-bucket = f"{ramal}bucket"  # Altere conforme necessário
 agi_verbose(f"Bucket usado: {bucket}")
 endpoint_url = f"http://3.82.106.88:8000/public/chatvoice/{bucket}"
 
 try:
-    # Requisição ao endpoint
     response = requests.get(endpoint_url)
     response.raise_for_status()
-
-    # Carrega o conteúdo JSON
     data = response.json()
     chatvoice_id = data.get("chatvoice_id")
 
@@ -97,16 +83,14 @@ try:
     if not chatvoice_id:
         agi_verbose("Resposta não contém 'chatvoice_id'. Abortando.")
     else:
-        # Conectar ao MinIO
         client = Minio(
-            MINIO_ENDPOINT,  # Usando o endereço configurado em configMinio.py
-            access_key=MINIO_ACCESS_KEY,  # Usando a chave de acesso configurada
-            secret_key=MINIO_SECRET_KEY,  # Usando a chave secreta configurada
-            secure=False  # Se estiver usando HTTP, defina como False
+            MINIO_ENDPOINT,
+            access_key=MINIO_ACCESS_KEY,
+            secret_key=MINIO_SECRET_KEY,
+            secure=False
         )
 
-        # Salvar o JSON no diretório correto
-        audio_dir = os.path.join("/tmp", bucket)  # Diretório onde os áudios serão salvos
+        audio_dir = os.path.join("/tmp", bucket)
         if not os.path.exists(audio_dir):
             os.makedirs(audio_dir)
 
@@ -115,13 +99,11 @@ try:
             json.dump(data, f, indent=2, ensure_ascii=False)
         agi_verbose(f"Arquivo JSON salvo com sucesso: {filename}")
 
-        # Salvar os áudios de gravações
         gravacoes = data.get("gravacoes", {})
         for key, audio_path_minio in gravacoes.items():
             if audio_path_minio:
                 download_audio(client, bucket, audio_path_minio)
 
-        # Salvar os áudios do formulário e setar variável AGI com o último áudio
         form_list = data.get("form", [])
         ultimo_audio = None
 
@@ -129,23 +111,19 @@ try:
             audio_path_minio = form_item.get("audio_path")
             if audio_path_minio:
                 download_audio(client, bucket, audio_path_minio)
-                ultimo_audio = audio_path_minio  # Atualiza para o último arquivo encontrado
+                time.sleep(0.5)  # 👈 Para evitar corrida/conflitos
+                ultimo_audio = audio_path_minio
 
         if ultimo_audio:
             agi_set_variable("ULTIMO_AUDIO", ultimo_audio)
 
-        # Adiciona variáveis para cada áudio e tipo do formulário (para o dialplan)
         for idx, form_item in enumerate(form_list):
             audio_path_minio = form_item.get("audio_path")
             form_type = form_item.get("type")
-        
             if audio_path_minio and form_type:
-                # Define o nome convertido para .gsm
                 converted_audio_path = os.path.splitext(audio_path_minio)[0]
-                
                 agi_set_variable(f"FORM_AUDIO_{idx}", converted_audio_path)
                 agi_set_variable(f"FORM_TYPE_{idx}", form_type)
-
 
         agi_set_variable("FORM_COUNT", str(len(form_list)))
 
