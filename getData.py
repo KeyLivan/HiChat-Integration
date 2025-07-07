@@ -28,34 +28,30 @@ def download_audio(client, bucket_minio, audio_path_minio):
     converted_audio_path = os.path.splitext(original_audio_path)[0] + ".gsm"
 
     try:
-        # Sempre remove antes para garantir que vai baixar versão nova
         if os.path.exists(original_audio_path):
             os.remove(original_audio_path)
         if os.path.exists(converted_audio_path):
             os.remove(converted_audio_path)
 
-        # Baixa do MinIO
         client.fget_object(bucket_minio, audio_path_minio, original_audio_path)
         agi_verbose(f"Áudio baixado: {original_audio_path}")
 
-        # Verifica tamanho do arquivo .opus
         size = os.path.getsize(original_audio_path)
         if size == 0:
             agi_verbose(f"Arquivo .opus está vazio: {original_audio_path}")
             return
 
-        # Executa ffmpeg com subprocess para capturar erros
         ffmpeg_cmd = [
             "ffmpeg", "-y", "-i", original_audio_path,
             "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
         ]
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if result.returncode == 0:
             agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
             os.remove(original_audio_path)
         else:
-            agi_verbose(f"Erro ao converter {original_audio_path}:\n{result.stderr}")
+            agi_verbose(f"Erro ao converter {original_audio_path}:\n{result.stderr.decode('utf-8')}")
 
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
