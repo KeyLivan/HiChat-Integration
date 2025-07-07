@@ -49,7 +49,7 @@ def download_audio(client, bucket_minio, audio_path_minio):
 
         if result.returncode == 0:
             agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-            #os.remove(original_audio_path)
+            os.remove(original_audio_path)
         else:
             agi_verbose(f"Erro ao converter {original_audio_path}:\n{result.stderr.decode('utf-8')}")
 
