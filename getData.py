@@ -87,7 +87,7 @@ ramal = adjust_channel_name(ramal)
 bucket = f"{ramal}bucket"
 
 agi_verbose(f"Bucket usado: {bucket}")
-endpoint_url = f"http://3.82.106.88:8000/public/chatvoice/{bucket}"
+endpoint_url = f"http://147.182.191.150:8000/public/chatvoice/{bucket}"
 
 try:
     response = requests.get(endpoint_url)
