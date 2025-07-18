@@ -14,7 +14,7 @@ form_type = sys.argv[5]
 finish = sys.argv[6]
 
 # Configurações fixas
-url = f"http://3.82.106.88:8000/form-transfer/{chatvoice_id}"  # Ajuste conforme o seu endpoint real
+url = f"http://147.182.191.150:8000/form-transfer/{chatvoice_id}"  # Ajuste conforme o seu endpoint real
 audio_path = f"/tmp/response_{call_id}_{form_type}.wav"   # Exemplo de onde está o arquivo
 
 # Dados do formulário
