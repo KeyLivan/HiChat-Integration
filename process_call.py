@@ -160,15 +160,24 @@ if not os.path.exists(recorded_audio_wav):
     exit_with_error("Sem áudio para processar")
 
 agi_verbose(f"Arquivo de entrada: {recorded_audio_wav}")
+input_size = os.path.getsize(recorded_audio_wav)
+agi_verbose(f"Tamanho do arquivo de entrada: {input_size} bytes")
+
+if input_size == 0:
+    agi_verbose("ERRO: Arquivo de entrada está vazio!")
+    update_empty_body_count(has_response=False)
+    exit_with_error("Arquivo de entrada vazio")
 
 try:
     # Envia áudio para a API
-    agi_verbose("Enviando áudio para a API...")
+    agi_verbose(f"Enviando áudio para a API: {endpoint_url}")
     with open(recorded_audio_wav, 'rb') as audio_file:
         files = {'file': audio_file}
-        response = requests.post(endpoint_url, files=files, data=data)
+        response = requests.post(endpoint_url, files=files, data=data, timeout=30)
 
     agi_verbose(f"Status HTTP: {response.status_code}")
+    agi_verbose(f"Response Headers: {dict(response.headers)}")
+    agi_verbose(f"Response Body (primeiros 500 chars): {response.text[:500]}")
 
     if response.status_code != 200:
         update_empty_body_count(has_response=False)
@@ -176,7 +185,7 @@ try:
 
     # Processa resposta JSON
     json_response = response.json()
-    agi_verbose(f"Resposta recebida: {json_response}")
+    agi_verbose(f"Resposta JSON completa: {json_response}")
 
     # Verifica transferência confirmada
     transferencia = json_response.get("transferencia_confirmada")
