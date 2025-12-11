@@ -1,16 +1,35 @@
 #!/usr/bin/env python3.6 
-import os
 import sys
-import requests
-import json
-from minio import Minio
-from minio.error import S3Error
-from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
+import os
 
-call_id = sys.argv[1]
-caller_number = sys.argv[2]
-chatvoice_id = sys.argv[3]
-bucket = sys.argv[4].strip()
+# Log imediato para debug - antes de qualquer coisa
+sys.stdout.write('VERBOSE "process_call.py - INICIANDO" 1\n')
+sys.stdout.flush()
+
+try:
+    import requests
+    import json
+    from minio import Minio
+    from minio.error import ResponseError
+    from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
+except Exception as e:
+    sys.stdout.write(f'VERBOSE "ERRO ao importar módulos: {e}" 1\n')
+    sys.stdout.flush()
+    sys.exit(0)
+
+sys.stdout.write(f'VERBOSE "process_call.py - Argumentos: {sys.argv}" 1\n')
+sys.stdout.flush()
+
+try:
+    call_id = sys.argv[1]
+    caller_number = sys.argv[2]
+    chatvoice_id = sys.argv[3]
+    bucket = sys.argv[4].strip()
+except IndexError as e:
+    sys.stdout.write(f'VERBOSE "ERRO: argumentos insuficientes: {e}" 1\n')
+    sys.stdout.flush()
+    sys.exit(0)
+
 data = {'asterisk': call_id, 'numero': caller_number}
 
 recorded_audio_wav = f"/tmp/call_{call_id}_in.wav"
@@ -138,7 +157,7 @@ def download_audio_from_minio(audio_path_minio):
         agi_verbose(f"Áudio GSM baixado com sucesso: {output_audio_gsm} ({size} bytes)")
         return True
         
-    except S3Error as e:
+    except ResponseError as e:
         agi_verbose(f"Erro ao baixar do MinIO: {str(e)}")
         return False
     except Exception as e:
