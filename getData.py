@@ -4,8 +4,6 @@ import json
 import os
 import sys
 import re
-import subprocess
-import time
 from minio import Minio
 from minio.error import ResponseError
 from configMinio import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT
@@ -20,59 +18,35 @@ def agi_set_variable(name, value):
     sys.stdout.flush()
 
 def download_audio(client, bucket_minio, audio_path_minio):
+    """Baixa áudio GSM do MinIO para o diretório local."""
     audio_dir = os.path.join("/tmp", bucket_minio)
     if not os.path.exists(audio_dir):
         os.makedirs(audio_dir)
 
-    original_audio_path = os.path.join(audio_dir, audio_path_minio)
-    converted_audio_path = os.path.splitext(original_audio_path)[0] + ".gsm"
+    local_audio_path = os.path.join(audio_dir, audio_path_minio)
 
     try:
-        if os.path.exists(original_audio_path):
-            os.remove(original_audio_path)
-        if os.path.exists(converted_audio_path):
-            os.remove(converted_audio_path)
+        # Remove arquivo existente se houver
+        if os.path.exists(local_audio_path):
+            os.remove(local_audio_path)
 
-        client.fget_object(bucket_minio, audio_path_minio, original_audio_path)
-        agi_verbose(f"Áudio baixado: {original_audio_path}")
-
-        size = os.path.getsize(original_audio_path)
+        # Baixa o áudio GSM do MinIO
+        client.fget_object(bucket_minio, audio_path_minio, local_audio_path)
+        
+        size = os.path.getsize(local_audio_path)
         if size == 0:
-            agi_verbose(f"Arquivo .opus está vazio: {original_audio_path}")
-            return
+            agi_verbose(f"Arquivo está vazio: {local_audio_path}")
+            return False
 
-        success = False
-        attempts = 3
-
-        for attempt in range(1, attempts + 1):
-            ffmpeg_cmd = [
-                "ffmpeg", "-y", "-i", original_audio_path,
-                "-ar", "8000", "-ac", "1", "-ab", "13k", converted_audio_path
-            ]
-            result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            gsm_size = os.path.getsize(converted_audio_path) if os.path.exists(converted_audio_path) else 0
-
-            if result.returncode == 0 and gsm_size > 0:
-                agi_verbose(f"Áudio convertido para GSM: {converted_audio_path}")
-                success = True
-                break
-            else:
-                agi_verbose(f"[Tentativa {attempt}] Erro ao converter {original_audio_path}:\n{result.stderr.decode('utf-8', errors='ignore')}")
-                if os.path.exists(converted_audio_path):
-                    os.remove(converted_audio_path)
-                time.sleep(0.5)
-
-        if not success:
-            agi_verbose(f"Falha definitiva ao converter {original_audio_path}. Todas as tentativas falharam.")
-
-        if os.path.exists(original_audio_path):
-            os.remove(original_audio_path)
+        agi_verbose(f"Áudio baixado: {local_audio_path} ({size} bytes)")
+        return True
 
     except ResponseError as e:
         agi_verbose(f"Erro ao baixar áudio {audio_path_minio}: {e}")
+        return False
     except Exception as e:
         agi_verbose(f"Erro inesperado ao processar áudio {audio_path_minio}: {e}")
+        return False
 
 
 def adjust_channel_name(channel_name):
@@ -128,9 +102,8 @@ try:
         for form_item in form_list:
             audio_path_minio = form_item.get("audio_path")
             if audio_path_minio:
-                download_audio(client, bucket, audio_path_minio)
-                time.sleep(0.5)  # 👈 Para evitar corrida/conflitos
-                ultimo_audio = audio_path_minio
+                if download_audio(client, bucket, audio_path_minio):
+                    ultimo_audio = audio_path_minio
 
         if ultimo_audio:
             agi_set_variable("ULTIMO_AUDIO", ultimo_audio)
@@ -139,8 +112,9 @@ try:
             audio_path_minio = form_item.get("audio_path")
             form_type = form_item.get("type")
             if audio_path_minio and form_type:
-                converted_audio_path = os.path.splitext(audio_path_minio)[0]
-                agi_set_variable(f"FORM_AUDIO_{idx}", converted_audio_path)
+                # Remove extensão para o Asterisk (ele adiciona .gsm automaticamente)
+                audio_base = os.path.splitext(audio_path_minio)[0]
+                agi_set_variable(f"FORM_AUDIO_{idx}", audio_base)
                 agi_set_variable(f"FORM_TYPE_{idx}", form_type)
 
         agi_set_variable("FORM_COUNT", str(len(form_list)))
